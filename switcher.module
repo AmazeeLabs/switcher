@@ -5,3 +5,146 @@
  *  Implements a system where more switchers (like the langauge switcher) can be
  *  defined and configured to have specific options.
  */
+
+/**
+ * Implements hook_menu().
+ */
+function switcher_menu() {
+  $path = switcher_get_admin_path();
+  $items[$path] = array(
+    'type' => MENU_NORMAL_ITEM,
+    'title' => 'Switcher',
+    // Maybe we should create another permission.
+    'access arguments' => array('administer site'),
+    'page callback' => 'switcher_admin_switcher_page',
+    'file' => 'switcher.admin.inc',
+  );
+  $items[$path . '/edit/%switcher'] = array(
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+    'title' => 'Edit switcher',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('switcher_admin_add_edit_switcher_form', 5),
+    'access arguments' => array('administer site'),
+    'file' => 'switcher.admin.inc',
+  );
+  $items[$path . '/delete/%switcher'] = array(
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+    'title' => 'Delete switcher',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('switcher_admin_delete_confirm', 5),
+    'access arguments' => array('administer site'),
+    'file' => 'switcher.admin.inc',
+  );
+  $items[$path . '/configure/%switcher'] = array(
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+    'title' => 'Configure switcher',
+    'page callback' => 'switcher_admin_configure_switcher_page',
+    'page arguments' => array(5),
+    'access arguments' => array('administer site'),
+    'file' => 'switcher.admin.inc',
+  );
+  /*$items[$path . '/configure/%switcher/edit/%switcher_configuration'] = array(
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+    'title' => 'Configure switcher',
+    'page callback' => 'switcher_admin_configure_switcher_page',
+    'page arguments' => array(5),
+    'access arguments' => array('administer site'),
+    'file' => 'switcher.admin.inc',
+  );*/
+  return $items;
+}
+
+/**
+ * Helper function to return the admin path.
+ */
+function switcher_get_admin_path() {
+  return 'admin/config/system/switcher';
+}
+
+/**
+ * Loads a switcher based on the sid.
+ */
+function switcher_load($sid) {
+  // @todo: create a static cache if this is called many times.
+  return db_select('switcher', 's')->fields('s')->condition('s.sid', $sid)->execute()->fetch();
+}
+
+/**
+ * Helper function to load all the switchers.
+ */
+function switcher_load_all($reset = FALSE) {
+  $switchers = &drupal_static(__FUNCTION__);
+  if (!isset($switchers) || $reset) {
+    $switchers = db_select('switcher', 's')->fields('s')->execute()->fetchAll();
+  }
+  return $switchers;
+}
+
+/**
+ * Saves a switcher to the database.
+ */
+function switcher_save($switcher) {
+  $primary_keys = array();
+  if (!empty($switcher->sid)) {
+    $primary_keys = array('sid');
+  }
+  drupal_write_record('switcher', $switcher, $primary_keys);
+}
+
+/**
+ * Deletes a switcher.
+ */
+function switcher_delete($sid) {
+  // @todo: Delete also the configuration.
+  db_delete('switcher')->condition('sid', $sid)->execute();
+}
+
+/**
+ * Loads a switcher configuration.
+ */
+function switcher_configuration_load($scid) {
+  // @todo: create a static cache if this is called many times.
+  $configuration = db_select('switcher_configuration', 's')->fields('s')->condition('s.scid', $scid)->execute()->fetch();
+  if (!empty($configuration)) {
+    $configuration->configuration = unserialize($configuration->configuration);
+  }
+  return $configuration;
+}
+
+/**
+ * Saves a configuration.
+ */
+function switcher_configuration_save($configuration) {
+  $primary_keys = array();
+  if (!empty($configuration->scid)) {
+    $primary_keys = array('scid');
+  }
+  drupal_write_record('switcher_configuration', $configuration);
+}
+
+/**
+ * Returns an array with all the switcher components.
+ */
+function switcher_get_all_components() {
+  $components = &drupal_static(__FUNCTION__);
+  if (!isset($components)) {
+    $all_components = module_invoke_all('switcher_components');
+    foreach ($all_components as $key => $value) {
+      $components[$key] = new $value['class']();
+    }
+  }
+  return $components;
+}
+
+/**
+ * Implements hook_switcher_components().
+ *
+ * @todo: Document the hook.
+ */
+function switcher_switcher_components() {
+  return array(
+    'site_language' => array(
+      'class' => 'SwitcherSiteLanguageComponent',
+    ),
+  );
+}
