@@ -1,0 +1,3 @@
+name = Switcher
+description = Implements a system where more switchers (like the langauge switcher) can be defined and configured to have specific options.
+core = 7.x

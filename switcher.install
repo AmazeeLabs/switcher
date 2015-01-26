@@ -1,0 +1,83 @@
+<?php
+
+/**
+ * @file
+ *  Install file for the switcher module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function switcher_schema() {
+  $schema['switcher'] = array(
+    'description' => 'Stores the metadata of the switchers',
+    'fields' => array(
+      'sid' => array(
+        'description' => 'The primary identifier for a switcher.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'title' => array(
+        'description' => 'A title for the switcher.',
+        'type' => 'varchar',
+        'length' => 1024,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'created' => array(
+        'description' => 'The Unix timestamp the switcher was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('sid'),
+  );
+  $schema['switcher_configuration'] = array(
+    'description' => 'Stores the configuration of the switchers',
+    'fields' => array(
+      'scid' => array(
+        'description' => 'The primary identifier for a switcher configuration.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'sid' => array(
+        'description' => 'The switcher for which the configuration is created.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'title' => array(
+        'description' => 'A title for the switcher.',
+        'type' => 'varchar',
+        'length' => 1024,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'configuration' => array(
+        'description' => 'The configuration.',
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'serialize' => TRUE,
+      ),
+      'weight' => array(
+        'description' => 'The weight of the configuration if the set.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'description' => 'The Unix timestamp the configuration was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('sid'),
+  );
+  return $schema;
+}
