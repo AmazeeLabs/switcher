@@ -43,15 +43,34 @@ function switcher_menu() {
     'access arguments' => array('administer site'),
     'file' => 'switcher.admin.inc',
   );
-  /*$items[$path . '/configure/%switcher/edit/%switcher_configuration'] = array(
+  $items[$path . '/configure/%switcher/edit/%switcher_configuration'] = array(
     'type' => MENU_VISIBLE_IN_BREADCRUMB,
-    'title' => 'Configure switcher',
-    'page callback' => 'switcher_admin_configure_switcher_page',
-    'page arguments' => array(5),
+    'title' => 'Edit switcher configuration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('switcher_admin_add_edit_config_form', 5, 7),
     'access arguments' => array('administer site'),
     'file' => 'switcher.admin.inc',
-  );*/
+  );
+  $items[$path . '/configure/%switcher/delete/%switcher_configuration'] = array(
+    'type' => MENU_VISIBLE_IN_BREADCRUMB,
+    'title' => 'Delete switcher configuration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('switcher_admin_delete_config_confirm', 7),
+    'access arguments' => array('administer site'),
+    'file' => 'switcher.admin.inc',
+  );
   return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function switcher_theme() {
+  return array(
+    'switcher_admin_switcher_components_form' => array(
+      'render element' => 'form',
+    ),
+  );
 }
 
 /**
@@ -95,8 +114,8 @@ function switcher_save($switcher) {
  * Deletes a switcher.
  */
 function switcher_delete($sid) {
-  // @todo: Delete also the configuration.
   db_delete('switcher')->condition('sid', $sid)->execute();
+  db_delete('switcher_configuration')->condition('sid', $sid)->execute();
 }
 
 /**
@@ -119,7 +138,31 @@ function switcher_configuration_save($configuration) {
   if (!empty($configuration->scid)) {
     $primary_keys = array('scid');
   }
-  drupal_write_record('switcher_configuration', $configuration);
+  drupal_write_record('switcher_configuration', $configuration, $primary_keys);
+}
+
+/**
+ * Deletes a configuration item.
+ */
+function switcher_configuration_delete($scid) {
+  db_delete('switcher_configuration')->condition('scid', $scid)->execute();
+}
+
+/**
+ * Loads all the configuration of a switcher.
+ *
+ * @param int $switcher_id
+ *  The id of the switcher.
+ */
+function switcher_configuration_load_all($switcher_id) {
+  // @todo: create a static cache if this is called many times.
+  $configuration = db_select('switcher_configuration', 's')->fields('s')->condition('s.sid', $switcher_id)->orderBy('s.weight')->execute()->fetchAll();
+  if (!empty($configuration)) {
+    foreach ($configuration as $key => $value) {
+      $configuration[$key]->configuration = unserialize($configuration[$key]->configuration);
+    }
+  }
+  return $configuration;
 }
 
 /**

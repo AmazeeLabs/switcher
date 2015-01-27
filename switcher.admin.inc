@@ -114,9 +114,88 @@ function switcher_admin_delete_confirm_submit(&$form, &$form_state) {
  */
 function switcher_admin_configure_switcher_page($switcher) {
   return array(
-    'configuration_list' => array('#markup' => 'Configuration list'),
+    'configuration_list' => drupal_get_form('switcher_admin_switcher_components_form', $switcher),
     'add_config' => drupal_get_form('switcher_admin_add_edit_config_form', $switcher),
   );
+}
+
+/**
+ * Form constructor for the switcher components admin form.
+ */
+function switcher_admin_switcher_components_form($form, &$form_state, $switcher) {
+  $configuration_components = switcher_configuration_load_all($switcher->sid);
+  if (!empty($configuration_components)) {
+    $header = array('title' => t('Title'), 'configuration' => t('Configuration'), 'actions' => t('Actions'), 'weight' => t('Weight'));
+
+    $rows = array();
+    $weight_delta = round(count($configuration_components) / 2) + 10;
+    foreach ($configuration_components as $configuration) {
+      $row = array();
+      $row[] = $configuration->title;
+      $row[] = 'Conf for: ' . $configuration->scid;
+      $actions = array();
+      $actions[] = l(t('Edit'), switcher_get_admin_path() . '/configure/' . $switcher->sid . '/edit/' . $configuration->scid);
+      $actions[] = l(t('Delete'), switcher_get_admin_path() . '/configure/' . $switcher->sid . '/delete/' . $configuration->scid);
+      $row[] = implode(' | ', $actions);
+
+      $rows[$configuration->scid] = array('data' => $row, 'class' => array('draggable'));
+      $form['weight_' . $configuration->scid] = array(
+        '#type' => 'weight',
+        '#default_value' => $configuration->weight,
+        '#delta' => $weight_delta,
+        '#attributes' => array('class' => array('configuration-weight')),
+        '#title' => t('Weight'),
+        '#title_display' => 'invisible',
+      );
+      $scids[] = $configuration->scid;
+    }
+    $form['scids'] = array(
+      '#type' => 'value',
+      '#value' => $scids,
+    );
+    $form['#header'] = $header;
+    $form['#rows'] = $rows;
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+    );
+  }
+  else {
+    $form['no_items']['#markup'] = t('There are no configurations defined at the moment.');
+  }
+  return $form;
+}
+
+/**
+ * Theme function for the switcher configuration table form.
+ */
+function theme_switcher_admin_switcher_components_form($variables) {
+  $form = $variables['form'];
+  $output = '';
+  if (!empty($form['#header'])) {
+    $table_id = 'switcher-configuration-table';
+    foreach ($form['#rows'] as $scid => &$value) {
+      $form['#rows'][$scid]['data']['weight'] = drupal_render($form['weight_' . $scid]);
+    }
+    $output = theme('table', array('header' => $form['#header'], 'rows' => $form['#rows'], 'attributes' => array('id' => $table_id)));
+    drupal_add_tabledrag($table_id, 'order', 'sibling', 'configuration-weight');
+  }
+  $output .= drupal_render_children($form);
+  return $output;
+}
+
+/**
+ * Submit handler fro the switcher configuration table form.
+ *
+ * This basically just updates the weight of the configuration items.
+ */
+function switcher_admin_switcher_components_form_submit(&$form, &$form_state) {
+  foreach ($form_state['values']['scids'] as $scid) {
+    $configuration = switcher_configuration_load($scid);
+    $configuration->weight = $form_state['values']['weight_' . $scid];
+    switcher_configuration_save($configuration);
+  }
+  drupal_set_message(t('The changes have been saved.'));
 }
 
 /**
@@ -142,6 +221,7 @@ function switcher_admin_add_edit_config_form($form, &$form_state, $switcher, $co
     '#type' => 'textfield',
     '#title' => t('Title'),
     '#default_value' => !empty($configuration) ? $configuration->title : '',
+    '#description' => t('Used just for administration purposes.'),
   );
   foreach ($switcher_components as $key => $component) {
     $conf_form[$key] = array(
@@ -165,6 +245,7 @@ function switcher_admin_add_edit_config_form($form, &$form_state, $switcher, $co
     $form['conf_form']['#title'] = t('Add a configuration');
     $form['conf_form']['#collapsible'] = TRUE;
     $form['conf_form']['#collapsed'] = TRUE;
+    $form['conf_form']['#description'] = t('By adding a configuration, the switcher will contain all the possible combinations of the options selected in the components.');
   }
   return $form;
 }
@@ -195,5 +276,29 @@ function switcher_admin_add_edit_config_form_submit(&$form, &$form_state) {
   }
   switcher_configuration_save($switcher_configuration);
   drupal_set_message($message);
+  $form_state['redirect'] = switcher_get_admin_path() . '/configure/' . $form_state['values']['sid'];
+}
+
+/**
+ * Confirmation form for deleting a configuration item.
+ */
+function switcher_admin_delete_config_confirm($form, &$form_state, $configuration) {
+  $form['scid'] = array(
+    '#type' => 'value',
+    '#value' => $configuration->scid,
+  );
+  $form['sid'] = array(
+    '#type' => 'value',
+    '#value' => $configuration->sid,
+  );
+  return confirm_form($form, t('Are you sure you want to delete the configuration?'), switcher_get_admin_path() . '/configure/' . $configuration->sid, t('Are you sure you want to delete the configuration? This action cannot be undone.'));
+}
+
+/**
+ * Submit handler for the delete configuration item form.
+ */
+function switcher_admin_delete_config_confirm_submit(&$form, &$form_state) {
+  switcher_configuration_delete($form_state['values']['scid']);
+  drupal_set_message(t('The configuration item has been deleted.'));
   $form_state['redirect'] = switcher_get_admin_path() . '/configure/' . $form_state['values']['sid'];
 }
