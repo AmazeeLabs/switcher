@@ -71,7 +71,7 @@ function switcher_theme() {
       'render element' => 'form',
     ),
     'switcher' => array(
-      'variables' => array('item_list' => '', 'active_item' => ''),
+      'variables' => array('items' => array(), 'item_list' => '', 'active_item' => ''),
       'template' => 'templates/switcher',
     ),
   );
