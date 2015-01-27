@@ -70,6 +70,10 @@ function switcher_theme() {
     'switcher_admin_switcher_components_form' => array(
       'render element' => 'form',
     ),
+    'switcher' => array(
+      'variables' => array('item_list' => '', 'active_item' => ''),
+      'template' => 'templates/switcher',
+    ),
   );
 }
 
@@ -190,4 +194,120 @@ function switcher_switcher_components() {
       'class' => 'SwitcherSiteLanguageComponent',
     ),
   );
+}
+
+/**
+ * Returns the items which are part of a switcher configuration.
+ *
+ * @param array $configuration_set
+ *  An array of configuration items.
+ *
+ * @param string $url
+ *  The URL to be used to generate the items. Optional, defaults to the current
+ *  URL of the request.
+ *
+ * @param array $options
+ *  An array with options to use for the item links. Optional, it will default
+ *  to keeping all the current variables from the request.
+ */
+function switcher_get_items($configuration_set = array(), $url = NULL, $options = array()) {
+  $switcher_components = switcher_get_all_components();
+  $items = array();
+  if (empty($url)) {
+    $url = $_GET['q'];
+  }
+  // For the site homepage, just reset the URL.
+  if (variable_get('site_frontpage', 'node') == $url) {
+    $url = '';
+  }
+  if (empty($options)) {
+    $options['query'] = drupal_get_query_parameters();
+  }
+  $current_value = array();
+  foreach ($switcher_components as $component_key => $component) {
+    $current_value[$component_key] = $component->getCurrentValue();
+  }
+  $active_found = FALSE;
+  foreach ($configuration_set as $configuration_item) {
+    $item_url = $url;
+    $item_options = $options;
+    // Each component will have the chance to alter the switcher item.
+    foreach ($switcher_components as $component) {
+      $component->prepareSwitcherItem($configuration_item->configuration['components'], $item_url, $item_options);
+    }
+    // Check if this item is also the active one.
+    $is_active = FALSE;
+    if (!$active_found) {
+      $diff = array_diff($current_value, $configuration_item->configuration['components']);
+      if (empty($diff)) {
+        $active_found = TRUE;
+        $is_active = TRUE;
+      }
+    }
+    $items[] = array(
+      'url' => $item_url,
+      'options' => $item_options,
+      'title' => $configuration_item->title,
+      'active' => $is_active,
+    );
+  }
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function switcher_block_info() {
+  $switchers = switcher_load_all();
+  $blocks = array();
+  if (!empty($switchers)) {
+    foreach ($switchers as $switcher) {
+      $blocks['switcher_' . $switcher->sid] = array(
+        'info' => t('Switcher: !switcher_title', array('!switcher_title' => $switcher->title)),
+        'cache' => DRUPAL_CACHE_PER_PAGE,
+      );
+    }
+  }
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function switcher_block_view($delta) {
+  $words = explode('_', $delta);
+  $switcher_id = (int) $words[1];
+  $switcher = switcher_load($switcher_id);
+  $block = array();
+  if (!empty($switcher)) {
+    $configuration = switcher_configuration_load_all($switcher->sid);
+    $block['content'] = array(
+      '#theme' => 'switcher',
+      '#items' => switcher_get_items($configuration),
+    );
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_preprocess_theme().
+ */
+function switcher_preprocess_switcher(&$vars) {
+  drupal_add_js(drupal_get_path('module', 'switcher') . '/js/switcher.js');
+  $list = array();
+  $active_item = array();
+  foreach ($vars['items'] as $item) {
+    $list[] = l($item['title'], $item['url'], $item['options']);
+    if (empty($active_item)) {
+      $active_item = $item;
+    }
+    if (!empty($item['active'])) {
+      $active_item = $item;
+    }
+  }
+  $vars['item_list'] = theme('item_list', array('items' => $list, 'attributes' => array('class' => array('switcher'))));
+  if (!empty($active_item)) {
+    $vars['active_item'] = l($active_item['title'], $active_item['url'], $active_item['options']);
+  }
 }

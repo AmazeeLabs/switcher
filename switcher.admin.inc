@@ -132,7 +132,7 @@ function switcher_admin_switcher_components_form($form, &$form_state, $switcher)
     foreach ($configuration_components as $configuration) {
       $row = array();
       $row[] = $configuration->title;
-      $row[] = 'Conf for: ' . $configuration->scid;
+      $row[] = switcher_admin_configuration_summary($configuration);
       $actions = array();
       $actions[] = l(t('Edit'), switcher_get_admin_path() . '/configure/' . $switcher->sid . '/edit/' . $configuration->scid);
       $actions[] = l(t('Delete'), switcher_get_admin_path() . '/configure/' . $switcher->sid . '/delete/' . $configuration->scid);
@@ -227,7 +227,6 @@ function switcher_admin_add_edit_config_form($form, &$form_state, $switcher, $co
     $conf_form[$key] = array(
       '#title' => $component->getTitle(),
       '#type' => 'select',
-      '#multiple' => TRUE,
       '#options' => $component->getAvailableOptions(),
       '#default_value' => !empty($configuration) ? $configuration->configuration['components'][$key] : NULL,
     );
@@ -272,7 +271,7 @@ function switcher_admin_add_edit_config_form_submit(&$form, &$form_state) {
   $switcher_configuration->title = $form_state['values']['title'];
   $switcher_components = switcher_get_all_components();
   foreach ($switcher_components as $key => $component) {
-    $switcher_configuration->configuration['components'][$key] = array_filter($form_state['values'][$key]);
+    $switcher_configuration->configuration['components'][$key] = $form_state['values'][$key];
   }
   switcher_configuration_save($switcher_configuration);
   drupal_set_message($message);
@@ -301,4 +300,16 @@ function switcher_admin_delete_config_confirm_submit(&$form, &$form_state) {
   switcher_configuration_delete($form_state['values']['scid']);
   drupal_set_message(t('The configuration item has been deleted.'));
   $form_state['redirect'] = switcher_get_admin_path() . '/configure/' . $form_state['values']['sid'];
+}
+
+/**
+ * Helper function to show a summary of a configuration item.
+ */
+function switcher_admin_configuration_summary($configuration) {
+  $components = switcher_get_all_components();
+  $summary = array();
+  foreach ($components as $component) {
+    $summary[] = $component->summary($configuration->configuration['components']);
+  }
+  return implode('</br>', $summary);
 }

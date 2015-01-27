@@ -26,4 +26,37 @@ class SwitcherSiteLanguageComponent implements SwitcherComponentInterface {
     }
     return $options;
   }
+
+  /**
+   * (non-PHPdoc)
+   * @see SwitcherComponentInterface::summary()
+   */
+  public function summary($values) {
+    $language_names = array();
+    $languages = language_list();
+    if (!empty($values['site_language'])) {
+      $language_names[] = $languages[$values['site_language']]->name;
+    }
+    return t('Language: @languages', array('@languages' => implode(', ', $language_names)));
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see SwitcherComponentInterface::prepareSwitcherItem()
+   */
+  public function prepareSwitcherItem(&$values, &$url, &$options) {
+    $languages = language_list();
+    if (!empty($values['site_language'])) {
+      $options['language'] = $languages[$values['site_language']];
+    }
+  }
+
+  /**
+   * (non-PHPdoc)
+   * @see SwitcherComponentInterface::getCurrentValue()
+   */
+  public function getCurrentValue() {
+    global $language;
+    return $language->language;
+  }
 }
