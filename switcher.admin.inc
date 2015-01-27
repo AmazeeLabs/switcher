@@ -221,7 +221,8 @@ function switcher_admin_add_edit_config_form($form, &$form_state, $switcher, $co
     '#type' => 'textfield',
     '#title' => t('Title'),
     '#default_value' => !empty($configuration) ? $configuration->title : '',
-    '#description' => t('Used just for administration purposes.'),
+    '#required' => TRUE,
+    '#description' => t('The title to use in the switcher.'),
   );
   foreach ($switcher_components as $key => $component) {
     $conf_form[$key] = array(
@@ -241,10 +242,9 @@ function switcher_admin_add_edit_config_form($form, &$form_state, $switcher, $co
   else {
     $form['conf_form'] = $conf_form;
     $form['conf_form']['#type'] = 'fieldset';
-    $form['conf_form']['#title'] = t('Add a configuration');
+    $form['conf_form']['#title'] = t('Add a switcher item');
     $form['conf_form']['#collapsible'] = TRUE;
     $form['conf_form']['#collapsed'] = TRUE;
-    $form['conf_form']['#description'] = t('By adding a configuration, the switcher will contain all the possible combinations of the options selected in the components.');
   }
   return $form;
 }
